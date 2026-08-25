@@ -59,22 +59,26 @@ library. Do not install Python packages.
 
 ## Installation
 
-1. Add the plugin:
+1. Add the plugin and enable it:
 
    ```bash
-   omarchy plugin add https://github.com/asfarsadewa/omarchy-omampy.git
+   omarchy plugin add https://github.com/asfarsadewa/omarchy-omampy.git --enable
    ```
 
-2. Enable the plugin:
+   This is the command that the marketplace shows. The `--enable` option
+   enables the plugin immediately.
+
+   To read the code before the plugin runs, do not use the `--enable` option.
+   The plugin then stays disabled. Enable it later with this command:
 
    ```bash
    omarchy plugin enable asfarsadewa.omampy right
    ```
 
-3. Put audio files in the `~/Music` directory. To use a different directory,
+2. Put audio files in the `~/Music` directory. To use a different directory,
    refer to "Configuration".
 
-4. Do a check of the installation:
+3. Do a check of the installation:
 
    ```bash
    ~/.config/omarchy/plugins/asfarsadewa.omampy/bin/omampy doctor
@@ -82,7 +86,7 @@ library. Do not install Python packages.
 
    The command shows the location of mpv, the audio directory and the socket.
 
-5. Open the panel:
+4. Open the panel:
 
    ```bash
    omarchy-shell omampy panel
