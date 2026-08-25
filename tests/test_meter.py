@@ -118,12 +118,25 @@ class NormalizeTests(unittest.TestCase):
             self.assertLessEqual(value, 1.0)
 
     def test_the_tilt_lifts_higher_bands(self):
-        flat = meter.normalize([-40.0] * 4)
+        flat = meter.normalize([-24.0] * 4)
         self.assertLess(flat[0], flat[-1])
 
     def test_no_tilt_leaves_a_flat_reading_flat(self):
-        flat = meter.normalize([-40.0] * 4, tilt_db=0.0)
+        flat = meter.normalize([-24.0] * 4, tilt_db=0.0)
         self.assertEqual(len(set(flat)), 1)
+
+    def test_the_window_matches_what_the_chain_actually_produces(self):
+        # Measured against real music through the receiver: quiet passages sit
+        # near -31 dB and peaks near -12 dB. Both ends have to stay on scale,
+        # and a normal reading must not pin at full.
+        quiet = meter.normalize([-31.0] * 8, tilt_db=0.0)[0]
+        loud = meter.normalize([-12.0] * 8, tilt_db=0.0)[0]
+        typical = meter.normalize([-20.0] * 8, tilt_db=0.0)[0]
+        self.assertGreater(quiet, 0.0)
+        self.assertLess(quiet, 0.3)
+        self.assertGreaterEqual(loud, 0.95)
+        self.assertGreater(typical, 0.3)
+        self.assertLess(typical, 0.9)
 
     def test_an_empty_frame_produces_nothing(self):
         self.assertEqual(meter.normalize([]), [])

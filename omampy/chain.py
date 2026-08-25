@@ -38,7 +38,9 @@ BAND_STAGES = 3
 DEFAULT_METER_BANDS = 14
 
 # Analysis range for the spectrum when the band itself is unlimited (FM).
-CLEAN_ANALYSIS_RANGE = (60.0, 10_000.0)
+# Stops at 8 kHz rather than the audible limit: above that most music has so
+# little energy that the top bars would simply never move.
+CLEAN_ANALYSIS_RANGE = (50.0, 8_000.0)
 
 
 # libavfilter unescapes twice on the way in: once when the graph is split
@@ -152,6 +154,20 @@ def signal_filters(band_name: str, intensity: float) -> list[str]:
     return out
 
 
+def levelling_filters(band_name: str) -> list[str]:
+    """Riding gain, for bands that have one.
+
+    A receiver has AGC whether or not there is static on the band, so this is
+    applied to every radio band rather than only when a noise bed is mixed
+    in. Keeping it unconditional also means the metering sees a consistent
+    level however the intensity knob is set.
+    """
+    if modes.mode(band_name)["band"] is None:
+        return []
+    return ["acompressor=threshold=0.5:ratio=3:attack=5:release=180:makeup=1.4",
+            "alimiter=limit=0.95"]
+
+
 def bed_weight(band_name: str, intensity: float) -> float:
     """Mix level for the noise bed, 0 when the band or intensity silences it."""
     spec = modes.mode(band_name)
@@ -215,6 +231,7 @@ def build_graph(
     """
     intensity = clamp_intensity(intensity)
     chain = signal_filters(band_name, intensity)
+    levelling = levelling_filters(band_name)
     weight = bed_weight(band_name, intensity)
     use_bed = bool(bed_path) and weight > 0.0
     meter_bands = max(0, int(meter_bands))
@@ -227,15 +244,12 @@ def build_graph(
             "amovie=%s:loop=0,volume=%g,aformat=%s[bed]"
             % (escape_value(bed_path), weight, PROBE_FORMAT)
         )
-        # Riding gain after the static is added stops a crackle spiking the
-        # output, and pushes the whole thing to that flat broadcast level.
-        sections.append(
-            "[sig][bed]amix=inputs=2:duration=first:normalize=0:weights=1 1,"
-            "acompressor=threshold=0.5:ratio=3:attack=5:release=180:makeup=1.4,"
-            "alimiter=limit=0.95[body]"
-        )
+        # Levelling goes after the static so a crackle cannot spike the
+        # output, and so the whole thing lands at that flat broadcast level.
+        sections.append("[sig][bed]amix=inputs=2:duration=first:normalize=0:weights=1 1,"
+                        + ",".join(levelling) + "[body]")
     elif chain:
-        sections.append("[in]" + ",".join(chain) + "[body]")
+        sections.append("[in]" + ",".join(chain + levelling) + "[body]")
     elif meter_bands < 1:
         return "[in]anull[out]"
     else:

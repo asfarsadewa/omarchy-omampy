@@ -195,10 +195,23 @@ class BuildGraphTests(unittest.TestCase):
         self.assertNotIn("amovie", chain.build_graph("fm", 1.0, bed_path="/tmp/bed.wav",
                                                      meter_bands=0))
 
-    def test_levelling_only_rides_gain_when_there_is_static_to_level(self):
-        self.assertIn("alimiter", chain.build_graph("mw", 0.8, bed_path="/tmp/b.wav",
-                                                    meter_bands=0))
-        self.assertNotIn("alimiter", chain.build_graph("mw", 0.8, meter_bands=0))
+    def test_every_radio_band_rides_gain_whatever_the_intensity(self):
+        # A receiver has AGC whether or not there is static on the band, and
+        # a consistent level is what makes the metering window calibratable.
+        for intensity in (0.0, 0.5, 1.0):
+            for bed in ("/tmp/b.wav", None):
+                graph = chain.build_graph("mw", intensity, bed_path=bed, meter_bands=0)
+                self.assertIn("acompressor", graph)
+                self.assertIn("alimiter", graph)
+
+    def test_the_clean_band_never_rides_gain(self):
+        self.assertNotIn("alimiter", chain.build_graph("fm", 1.0, meter_bands=0))
+        self.assertEqual(chain.levelling_filters("fm"), [])
+
+    def test_levelling_comes_after_the_static_is_mixed_in(self):
+        graph = chain.build_graph("sw", 0.8, bed_path="/tmp/b.wav", meter_bands=0)
+        self.assertLess(graph.index("amix"), graph.index("acompressor"))
+        self.assertLess(graph.index("acompressor"), graph.index("alimiter"))
 
     def test_meter_bands_control_the_probe_width(self):
         graph = chain.build_graph("sw", 0.5, meter_bands=11)

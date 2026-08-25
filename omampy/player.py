@@ -176,11 +176,16 @@ def status_from_props(props: dict | None, settings: dict) -> dict:
     return base
 
 
-def playlist_window(tracks: Sequence, index: int, rows: int) -> list[dict]:
+def playlist_window(tracks: Sequence, index: int, rows: int,
+                    current_display: str = "") -> list[dict]:
     """The slice of the playlist to show, keeping the current track in view.
 
     Scrolls only when it has to: the current track stays put until it reaches
     the edge of the window, which is far less jumpy to read than centring it.
+
+    `current_display` overrides the name of the row being played. The list is
+    built from filenames, but once a file is open mpv can tell us what its
+    tags actually say, and the two disagreeing on screen looks like a bug.
     """
     if rows < 1:
         raise ValueError("rows must be >= 1")
@@ -196,8 +201,11 @@ def playlist_window(tracks: Sequence, index: int, rows: int) -> list[dict]:
         position = start + offset
         track = tracks[position]
         display = track.display if hasattr(track, "display") else str(track)
+        current = position == index
+        if current and current_display:
+            display = current_display
         out.append({"index": position, "number": position + 1,
-                    "display": display, "current": position == index})
+                    "display": display, "current": current})
     return out
 
 
@@ -273,7 +281,8 @@ def console(status: dict, values: Sequence[float], peaks: Sequence[float] | None
                                                              status.get("duration"),
                                                              bar_width), total)
 
-    entries = playlist_window(tracks, status.get("index", 0), playlist_rows)
+    entries = playlist_window(tracks, status.get("index", 0), playlist_rows,
+                              str(status.get("display") or ""))
 
     rows: list[dict] = []
 

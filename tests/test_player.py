@@ -203,6 +203,20 @@ class PlaylistWindowTests(unittest.TestCase):
     def test_numbers_are_one_based(self):
         self.assertEqual(player.playlist_window(tracks(3), 0, 3)[0]["number"], 1)
 
+    def test_the_current_rows_name_can_be_overridden(self):
+        window = player.playlist_window(tracks(5), 2, 5, "Maaya Sakamoto — Yakusoku")
+        self.assertEqual(window[2]["display"], "Maaya Sakamoto — Yakusoku")
+
+    def test_the_override_touches_only_the_current_row(self):
+        window = player.playlist_window(tracks(5), 2, 5, "Tagged")
+        others = [entry["display"] for entry in window if not entry["current"]]
+        self.assertNotIn("Tagged", others)
+
+    def test_an_empty_override_leaves_the_filename_alone(self):
+        plain = player.playlist_window(tracks(5), 2, 5)
+        overridden = player.playlist_window(tracks(5), 2, 5, "")
+        self.assertEqual(plain, overridden)
+
     def test_zero_rows_is_rejected(self):
         with self.assertRaises(ValueError):
             player.playlist_window(tracks(3), 0, 0)
@@ -336,6 +350,13 @@ class ConsoleTests(unittest.TestCase):
             if row["kind"] == player.ROW_TRACK:
                 self.assertIsInstance(row["index"], int)
                 self.assertIsInstance(row["current"], bool)
+
+    def test_the_playing_row_matches_the_now_playing_line(self):
+        drawn = self.build()
+        current = [r for r in drawn["rows"]
+                   if r["kind"] == player.ROW_TRACK and r["current"]][0]
+        self.assertIn("Trio", current["text"])
+        self.assertIn("Trio", drawn["nowPlaying"])
 
     def test_exactly_one_track_row_is_current(self):
         rows = [r for r in self.build()["rows"] if r["kind"] == player.ROW_TRACK]

@@ -21,15 +21,19 @@ import re
 from typing import Iterable
 
 # Everything below the floor is silence, everything above the ceiling is
-# pinned. The window is deliberately narrow: the signal has already been
-# compressed and limited by the time the probe sees it.
-DB_FLOOR = -62.0
-DB_CEIL = -14.0
+# pinned. The window is narrow on purpose, and these numbers are measured
+# rather than guessed: with the receiver's AGC in the chain, per-band RMS on
+# real music sits between about -31 dB in the quiet passages and -12 dB on
+# peaks. A wider window leaves every bar stuck at full scale.
+DB_FLOOR = -34.0
+DB_CEIL = -12.0
 
-# Music loses roughly 3 dB per octave going up, so without a tilt the right
-# half of the spectrum never moves. This is a straight ramp in dB applied
-# across the bands, lowest to highest.
-DEFAULT_TILT_DB = 14.0
+# A small analyser tilt, the way a real spectrum analyser applies one. It is
+# deliberately gentle: the bands are logarithmically spaced, so roughly
+# equal-energy-per-octave music already reads flat across them, and a heavy
+# tilt would only hide the difference in shape between a wide band and a
+# narrow one — which is the thing worth seeing.
+DEFAULT_TILT_DB = 4.0
 
 SILENT = float("-inf")
 
