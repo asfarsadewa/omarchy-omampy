@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Run the whole suite. No dependencies beyond the Python standard library.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec python3 -W error::SyntaxWarning -m unittest discover -s tests -t . "$@"

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "asfarsadewa.omampy",
+  "name": "OMAMPY",
+  "version": "0.1.0",
+  "author": "asfarsadewa",
+  "description": "A 1980s AM/shortwave receiver for your local audio files, drawn in block glyphs",
+  "kinds": [
+    "service",
+    "overlay",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "qml/Service.qml",
+    "overlay": "qml/Console.qml",
+    "barWidget": "qml/BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "OMAMPY",
+    "description": "Retro radio player with a live block-glyph VU meter",
+    "category": "Media",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
