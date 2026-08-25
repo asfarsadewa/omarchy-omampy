@@ -101,15 +101,16 @@ def track_names(props: dict) -> tuple[str, str]:
     artist = lowered.get("artist") or lowered.get("album_artist") or ""
     title = lowered.get("title") or ""
     if artist and title:
-        return (artist.strip(), title.strip())
+        return (render.safe_text(artist.strip()), render.safe_text(title.strip()))
 
     path = props.get("path") or ""
     if path:
         guess = library.track_from_path(str(path))
-        return (artist.strip() or guess.artist, title.strip() or guess.title)
+        return (render.safe_text(artist.strip() or guess.artist),
+                render.safe_text(title.strip() or guess.title))
 
     fallback = str(props.get("media-title") or "").strip()
-    return (artist.strip(), title.strip() or fallback)
+    return (render.safe_text(artist.strip()), render.safe_text(title.strip() or fallback))
 
 
 def _number(value, fallback: float = 0.0) -> float:
@@ -162,7 +163,7 @@ def status_from_props(props: dict | None, settings: dict) -> dict:
 
     artist, title = track_names(props)
     base.update({
-        "path": str(props.get("path") or ""),
+        "path": render.safe_text(props.get("path") or ""),
         "artist": artist,
         "title": title,
         "display": ("%s — %s" % (artist, title)) if artist and title else (title or artist),
@@ -200,10 +201,11 @@ def playlist_window(tracks: Sequence, index: int, rows: int,
     for offset in range(min(rows, total - start)):
         position = start + offset
         track = tracks[position]
-        display = track.display if hasattr(track, "display") else str(track)
+        display = render.safe_text(
+            track.display if hasattr(track, "display") else str(track))
         current = position == index
         if current and current_display:
-            display = current_display
+            display = render.safe_text(current_display)
         out.append({"index": position, "number": position + 1,
                     "display": display, "current": current})
     return out

@@ -112,6 +112,17 @@ class TrackNameTests(unittest.TestCase):
     def test_nothing_at_all_gives_empty_names(self):
         self.assertEqual(player.track_names({}), ("", ""))
 
+    def test_a_control_character_in_a_tag_cannot_reach_a_frame(self):
+        props = {"path": "/m/x.mp3", "metadata": {"artist": "A\nB", "title": "C\rD"}}
+        artist, title = player.track_names(props)
+        self.assertEqual((artist, title), ("A B", "C D"))
+
+    def test_an_unbounded_tag_is_clipped(self):
+        props = {"path": "/m/x.mp3",
+                 "metadata": {"artist": "a" * 9000, "title": "b" * 9000}}
+        for value in player.track_names(props):
+            self.assertLessEqual(len(value), render.MAX_TEXT)
+
     def test_broken_metadata_does_not_raise(self):
         self.assertEqual(player.track_names({"metadata": "nonsense"}), ("", ""))
 
@@ -166,6 +177,12 @@ class StatusTests(unittest.TestCase):
         status = player.status_from_props(dict(PLAYING, **{"time-pos": -3}), settings())
         self.assertEqual(status["position"], 0.0)
 
+    def test_no_frame_field_carries_an_unbounded_path(self):
+        status = player.status_from_props(
+            dict(PLAYING, **{"path": "/m/" + "z" * 9000 + ".mp3"}), settings())
+        for key in ("path", "artist", "title", "display"):
+            self.assertLessEqual(len(status[key]), render.MAX_TEXT * 2 + 3, key)
+
     def test_the_status_shape_is_the_same_up_or_down(self):
         self.assertEqual(set(player.status_from_props(None, settings())),
                          set(player.status_from_props(PLAYING, settings())))
@@ -202,6 +219,16 @@ class PlaylistWindowTests(unittest.TestCase):
 
     def test_numbers_are_one_based(self):
         self.assertEqual(player.playlist_window(tracks(3), 0, 3)[0]["number"], 1)
+
+    def test_a_playlist_row_cannot_carry_a_control_character(self):
+        rows = player.playlist_window([library.Track("/m/x.mp3", "A\nB", "C", ".mp3", 0)],
+                                      0, 1)
+        self.assertNotIn("\n", rows[0]["display"])
+
+    def test_a_playlist_row_is_bounded(self):
+        long_track = library.Track("/m/x.mp3", "a" * 9000, "b" * 9000, ".mp3", 0)
+        rows = player.playlist_window([long_track], 0, 1)
+        self.assertLessEqual(len(rows[0]["display"]), render.MAX_TEXT)
 
     def test_the_current_rows_name_can_be_overridden(self):
         window = player.playlist_window(tracks(5), 2, 5, "Maaya Sakamoto — Yakusoku")

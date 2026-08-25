@@ -22,10 +22,33 @@ BLOCKS = " ▁▂▃▄▅▆▇█"
 SHADES = " ░▒▓█"
 PEAK_GLYPH = "▔"
 
+# Longest text kept in any field of a frame. File names and tags come from
+# outside this program and have no length limit of their own, while a frame is
+# built many times a second and sent as one JSON line.
+MAX_TEXT = 200
+
 BOX = {
     "tl": "┌", "tr": "┐", "bl": "└", "br": "┘",
     "h": "─", "v": "│", "lt": "├", "rt": "┤",
 }
+
+
+def safe_text(value, limit: int = MAX_TEXT) -> str:
+    """Make text from outside the program safe to put in a frame.
+
+    Two problems, both from the same source. A file name on Linux can contain
+    a newline or any other control character, which would break one drawn line
+    of the console into several. And nothing limits the length of a file name
+    or a tag, while a frame is built many times a second.
+
+    Control characters become a space, and the result is bounded. This is not
+    a substitute for a plain-text sink: it is what keeps a frame the size it
+    is supposed to be, and it protects the one sink this plugin does not own,
+    the shell's tooltip.
+    """
+    text = str(value or "")
+    cleaned = "".join(" " if unicodedata.category(ch)[0] == "C" else ch for ch in text)
+    return cleaned[: max(0, int(limit))]
 
 
 def display_width(text: str) -> int:

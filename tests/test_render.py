@@ -23,6 +23,40 @@ class WidthTests(unittest.TestCase):
         self.assertEqual(render.display_width(""), 0)
 
 
+class SafeTextTests(unittest.TestCase):
+    """Text arriving from a file name or a tag, on its way into a frame."""
+
+    def test_ordinary_text_is_unchanged(self):
+        self.assertEqual(render.safe_text("Trio — Da Da Da"), "Trio — Da Da Da")
+
+    def test_a_newline_in_a_file_name_becomes_a_space(self):
+        # Legal in a Linux file name, and it would split one drawn line in two.
+        self.assertEqual(render.safe_text("Song\nInjected"), "Song Injected")
+
+    def test_every_control_character_is_removed(self):
+        for ch in ("\r", "\n", "\v", "\f", "\x00", "\x1b", "\x7f", "\u0085"):
+            self.assertNotIn(ch, render.safe_text("a%sb" % ch))
+            self.assertEqual(len(render.safe_text("a%sb" % ch)), 3)
+
+    def test_an_escape_sequence_cannot_survive(self):
+        self.assertNotIn("\x1b", render.safe_text("\x1b[31mred\x1b[0m"))
+
+    def test_length_is_bounded(self):
+        self.assertEqual(len(render.safe_text("x" * 100_000)), render.MAX_TEXT)
+
+    def test_the_bound_is_configurable(self):
+        self.assertEqual(len(render.safe_text("x" * 500, 12)), 12)
+
+    def test_markup_is_kept_verbatim(self):
+        # It must render literally in a plain-text sink, not be mangled here.
+        evil = '<img src="http://example.invalid/x.png">'
+        self.assertEqual(render.safe_text(evil), evil)
+
+    def test_missing_values_become_empty(self):
+        for value in (None, "", 0, False):
+            self.assertEqual(render.safe_text(value), "")
+
+
 class TruncateTests(unittest.TestCase):
     def test_text_that_fits_is_untouched(self):
         self.assertEqual(render.truncate("radio", 8), "radio")

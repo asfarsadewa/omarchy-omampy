@@ -42,6 +42,7 @@ BarWidget {
       // U+F0439 nf-md-radio, embedded directly: it is above the BMP, and a
       // \u escape takes only four hex digits.
       text: "󰐹"
+      textFormat: Text.PlainText
       color: root.onAir
         ? root.bar.barForeground
         : Qt.darker(root.bar.barForeground, root.live ? 1.35 : 2.0)
@@ -59,6 +60,7 @@ BarWidget {
       // characters, which held its width open as an empty gap.
       visible: root.onAir && root.meter !== ""
       text: root.meter
+      textFormat: Text.PlainText
       color: root.bar.barForeground
       font.family: root.bar.fontFamily
       font.pixelSize: Style.font.body
@@ -68,6 +70,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       visible: root.live && root.band !== "" && !root.bar.vertical
       text: root.band
+      textFormat: Text.PlainText
       color: Qt.darker(root.bar.barForeground, 1.4)
       font.family: root.bar.fontFamily
       font.pixelSize: Style.font.caption
@@ -84,6 +87,7 @@ BarWidget {
       Text {
         id: title
         text: root.label
+        textFormat: Text.PlainText
         color: root.bar.barForeground
         font.family: root.bar.fontFamily
         font.pixelSize: Style.font.body
@@ -120,9 +124,17 @@ BarWidget {
       root.service.nudgeVolume(wheel.angleDelta.y > 0 ? 5 : -5)
     }
 
-    onEntered: if (root.bar) root.bar.showTooltip(root, root.live
-      ? (root.label || "OMAMPY") + (root.band ? "  ·  " + root.band : "")
-      : "OMAMPY — off air (click to open)")
+    // The shell's tooltip is the one text sink here that this plugin does not
+    // own, and it renders with QML's default AutoText. Angle brackets are
+    // what make that sniff a title as markup, so they are removed on the way
+    // in. The console itself keeps them: those rows are pinned to plain text.
+    function tooltipText() {
+      if (!root.live) return "OMAMPY — off air (click to open)"
+      var label = String(root.label || "OMAMPY").replace(/[<>]/g, "")
+      return label + (root.band ? "  ·  " + root.band : "")
+    }
+
+    onEntered: if (root.bar) root.bar.showTooltip(root, tooltipText())
     onExited: if (root.bar) root.bar.hideTooltip(root)
   }
 }

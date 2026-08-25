@@ -226,6 +226,7 @@ Item {
           Text {
             id: topRule
             text: root.service ? root.service.topRule : ""
+            textFormat: Text.PlainText
             font.family: root.fontFamily
             font.pixelSize: root.fontSize
             color: root.accent
@@ -255,7 +256,11 @@ Item {
                 id: line
                 anchors.fill: parent
                 verticalAlignment: Text.AlignVCenter
+                // Plain text, always. These rows carry file names and tags,
+                // and QML's default AutoText sniffs a string for markup and
+                // will load remote resources out of a crafted one.
                 text: "│" + (rowItem.row.text || "") + "│"
+                textFormat: Text.PlainText
                 font.family: root.fontFamily
                 font.pixelSize: root.fontSize
                 color: rowItem.row.kind === "track" && rowItem.row.current
@@ -312,6 +317,7 @@ Item {
 
           Text {
             text: root.service ? root.service.bottomRule : ""
+            textFormat: Text.PlainText
             font.family: root.fontFamily
             font.pixelSize: root.fontSize
             color: root.accent
@@ -334,6 +340,7 @@ Item {
                 + "\nspace play · ◂▸ track · ▴▾ volume · [ ] static"
                 + "\n1-4 band · s shuffle · r repeat · o radio on/off"
                 + "\nq hides this panel — the radio keeps playing"
+            textFormat: Text.PlainText
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             color: root.dim
