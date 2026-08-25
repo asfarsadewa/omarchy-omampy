@@ -289,7 +289,7 @@ show up in `journalctl --user -f | grep omampy`.
 ## Credits
 
 The effect model — passbands, drive, fade depth, hiss level, crackle rate — is
-carried over from [`make-radio-sound`](https://github.com/asfarsadewa), an
+carried over from [`make-radio-sound`](https://github.com/asfarsadewa/make-radio-sound), an
 offline renderer that did the same thing to a file with numpy and scipy. This
 plugin does it live, with no dependencies, and adds the metering, the bands,
 and the receiver.
