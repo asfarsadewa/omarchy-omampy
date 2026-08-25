@@ -73,7 +73,33 @@ right-click to play/pause, middle-click to skip, scroll to change volume.
 you get the band-limiting and saturation with none of the noise; at `1` the
 station is barely holding on.
 
-## Console keys
+## The console
+
+A radio is something you leave on while you work, so the console is a floating
+panel rather than a modal overlay. It sits on the compositor's overlay layer —
+in front of everything, including fullscreen windows — but it stays out of your
+way:
+
+- **clicks outside it pass straight through** to whatever is underneath, and it
+  does not close when you go back to what you were doing;
+- **it does not take your keyboard.** Your terminal keeps focus until you
+  actually click the panel;
+- **drag it anywhere** by its frame.
+
+Because it only takes the keyboard on demand, click it once before using the
+keys. Everything important is also reachable with the mouse alone.
+
+### Mouse
+
+| Do this | Get |
+|---------|-----|
+| click a band label | switch to that band |
+| click along the transport bar | seek to that point |
+| click a track | jump to it |
+| drag the frame | move the panel |
+| scroll anywhere on it | volume |
+
+### Keys
 
 | Key | Does |
 |-----|------|
@@ -87,8 +113,6 @@ station is barely holding on.
 | `s` / `r` | shuffle / repeat mode |
 | `o` | receiver on/off |
 | `q` or `esc` | close |
-
-Clicking a row in the track list jumps to it.
 
 ## Configuration
 
@@ -195,13 +219,19 @@ transport bar, the track list — all of it is rendered to strings by Python and
 padded to an exact character width. The QML paints rows and colours them; it
 does not compute a single bar height. That is what keeps the layout testable.
 
+That goes for the click targets too: Python reports which character cells each
+band label and the transport bar occupy, and the UI multiplies by one cell
+width to place a hit area. So "clicking `SW` switches to shortwave" is
+something a test can assert on a string, rather than a thing you can only find
+out by clicking.
+
 ## Tests
 
 ```bash
 ./scripts/test
 ```
 
-448 tests, standard library `unittest`, no audio device and no mpv required.
+472 tests, standard library `unittest`, no audio device and no mpv required.
 They cover every deterministic part: the band models, the filtergraph builder
 (including the two-level ffmpeg escaping, verified against real ffmpeg), the
 noise-bed synthesis and its determinism, the metering maths, every drawing

@@ -57,6 +57,9 @@ Item {
   readonly property string statusTag: frame.statusTag ? String(frame.statusTag) : ""
   readonly property string mini: frame.mini ? String(frame.mini) : ""
   readonly property var rows: frame.rows ? frame.rows : []
+  readonly property var bandTargets: frame.bandTargets ? frame.bandTargets : []
+  readonly property var transportTarget: frame.transportTarget ? frame.transportTarget : ({})
+  readonly property real trackDuration: status.duration ? Number(status.duration) : 0
   readonly property string topRule: frame.top ? String(frame.top) : ""
   readonly property string bottomRule: frame.bottom ? String(frame.bottom) : ""
   readonly property string tooltip: frame.lines ? frame.lines.join("\n") : ""
@@ -77,6 +80,7 @@ Item {
   function previous() { run(["prev"]) }
   function playIndex(index) { run(["play", String(Math.max(0, index))]) }
   function seek(seconds) { run(["seek", String(seconds)]) }
+  function seekTo(seconds) { run(["seek", String(Math.max(0, seconds)), "--absolute"]) }
   function nudgeVolume(step) { run(["volume", (step >= 0 ? "+" : "") + String(step)]) }
   function setBand(name) { run(["band", String(name)]) }
   function stepBand(direction) { run(["band", direction >= 0 ? "--next" : "--prev"]) }

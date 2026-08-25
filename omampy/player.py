@@ -252,9 +252,13 @@ def console(status: dict, values: Sequence[float], peaks: Sequence[float] | None
     field = inner - label_width
 
     spectrum = render.spectrum_rows(values, height, peaks)
-    band_row = render.band_switch(
-        status.get("band", modes.DEFAULT_MODE), modes.ORDER,
-        {name: modes.MODES[name]["label"] for name in modes.ORDER})
+    band_labels = {name: modes.MODES[name]["label"] for name in modes.ORDER}
+    current_band = status.get("band", modes.DEFAULT_MODE)
+    band_row = render.band_switch(current_band, modes.ORDER, band_labels)
+    # Click targets are measured from the left edge of the drawn line, which
+    # starts with the frame's own border character.
+    band_targets = render.band_hits(current_band, modes.ORDER, band_labels,
+                                    offset=1 + label_width)
     dial_label = str(status.get("dialLabel", ""))
     dial_width = max(5, field - render.display_width(dial_label) - 2)
     # The pointer walks the scale as the band switch moves along it.
@@ -280,6 +284,10 @@ def console(status: dict, values: Sequence[float], peaks: Sequence[float] | None
     transport = "  %s %s %s" % (elapsed, render.progress_bar(status.get("position"),
                                                              status.get("duration"),
                                                              bar_width), total)
+    # Same idea for the transport: clicking along the bar is a seek, so the
+    # UI needs to know exactly which cells it occupies.
+    transport_target = {"start": 1 + 2 + render.display_width(elapsed) + 1,
+                        "width": bar_width}
 
     entries = playlist_window(tracks, status.get("index", 0), playlist_rows,
                               str(status.get("display") or ""))
@@ -331,6 +339,8 @@ def console(status: dict, values: Sequence[float], peaks: Sequence[float] | None
         "playlist": [row["text"] for row in rows if row["kind"] == ROW_TRACK],
         "playlistEntries": entries,
         "statusTag": tag,
+        "bandTargets": band_targets,
+        "transportTarget": transport_target,
     }
 
 

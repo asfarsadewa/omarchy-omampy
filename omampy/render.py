@@ -248,14 +248,43 @@ def dial(position: float, width: int, *, ticks: int = 4) -> str:
     return "".join(cells)
 
 
-def band_switch(current: str, order: Sequence[str], labels: dict | None = None) -> str:
-    """The band selector row; the selected band sits between half-blocks."""
+def band_segments(current: str, order: Sequence[str],
+                  labels: dict | None = None) -> list[tuple[str, str]]:
+    """`(band, drawn label)` for each position on the switch.
+
+    The selected band sits between half-blocks; the others keep the same
+    width in spaces so the row never shifts as you tune.
+    """
     labels = labels or {}
-    parts = []
+    out = []
     for name in order:
         label = str(labels.get(name, name)).upper()
-        parts.append("▐%s▌" % label if name == current else " %s " % label)
-    return " ".join(parts)
+        out.append((name, "▐%s▌" % label if name == current else " %s " % label))
+    return out
+
+
+def band_switch(current: str, order: Sequence[str], labels: dict | None = None) -> str:
+    """The band selector row, drawn."""
+    return " ".join(text for _name, text in band_segments(current, order, labels))
+
+
+def band_hits(current: str, order: Sequence[str], labels: dict | None = None,
+              offset: int = 0) -> list[dict]:
+    """Where each band label sits in the row, in character cells.
+
+    The UI turns these into click targets, so the switch works with the mouse
+    as well as the keyboard. `offset` shifts them to wherever the row is
+    drawn inside the wider console line.
+    """
+    hits = []
+    cursor = int(offset)
+    for index, (name, text) in enumerate(band_segments(current, order, labels)):
+        if index:
+            cursor += 1  # the space the row is joined with
+        width = display_width(text)
+        hits.append({"band": name, "start": cursor, "width": width})
+        cursor += width
+    return hits
 
 
 def signal_glyphs(strength: float, count: int = 5) -> str:

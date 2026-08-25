@@ -295,6 +295,55 @@ class BandSwitchTests(unittest.TestCase):
         self.assertEqual(render.display_width(first), render.display_width(second))
 
 
+class BandHitTests(unittest.TestCase):
+    ORDER = ["mw", "sw", "lw", "fm"]
+
+    def row(self, current="sw"):
+        return render.band_switch(current, self.ORDER)
+
+    def test_there_is_one_target_per_band(self):
+        hits = render.band_hits("sw", self.ORDER)
+        self.assertEqual([h["band"] for h in hits], self.ORDER)
+
+    def test_each_target_lands_exactly_on_its_label(self):
+        row = self.row()
+        for hit in render.band_hits("sw", self.ORDER):
+            slice_ = row[hit["start"]:hit["start"] + hit["width"]]
+            self.assertIn(hit["band"].upper(), slice_)
+
+    def test_the_selected_target_covers_its_markers(self):
+        row = self.row()
+        hit = [h for h in render.band_hits("sw", self.ORDER) if h["band"] == "sw"][0]
+        self.assertEqual(row[hit["start"]:hit["start"] + hit["width"]], "▐SW▌")
+
+    def test_targets_do_not_overlap_and_run_left_to_right(self):
+        hits = render.band_hits("mw", self.ORDER)
+        for earlier, later in zip(hits, hits[1:]):
+            self.assertLessEqual(earlier["start"] + earlier["width"], later["start"])
+
+    def test_targets_stay_inside_the_row(self):
+        row = self.row()
+        for hit in render.band_hits("sw", self.ORDER):
+            self.assertLessEqual(hit["start"] + hit["width"], len(row))
+
+    def test_an_offset_shifts_every_target(self):
+        plain = render.band_hits("sw", self.ORDER)
+        shifted = render.band_hits("sw", self.ORDER, offset=7)
+        for a, b in zip(plain, shifted):
+            self.assertEqual(b["start"] - a["start"], 7)
+            self.assertEqual(a["width"], b["width"])
+
+    def test_targets_do_not_move_when_the_selection_does(self):
+        first = render.band_hits("mw", self.ORDER)
+        second = render.band_hits("fm", self.ORDER)
+        self.assertEqual([h["start"] for h in first], [h["start"] for h in second])
+
+    def test_segments_and_the_drawn_row_agree(self):
+        segments = render.band_segments("lw", self.ORDER)
+        self.assertEqual(" ".join(t for _n, t in segments),
+                         render.band_switch("lw", self.ORDER))
+
+
 class SignalGlyphTests(unittest.TestCase):
     def test_the_readout_is_exactly_the_requested_length(self):
         self.assertEqual(render.display_width(render.signal_glyphs(0.5, 5)), 5)

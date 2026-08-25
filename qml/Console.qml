@@ -22,10 +22,12 @@ Item {
   property bool opened: false
 
   // Shares the [menu] surface tokens, so a theme that styles the Omarchy
-  // menu styles the radio too.
-  readonly property color background: Color.menu.background
+  // menu styles the radio too. The background is forced fully opaque: unlike
+  // a popup that flashes past, this panel sits over whatever you are working
+  // in, and even slight translucency makes block glyphs hard to read against
+  // a page of terminal text showing through them.
+  readonly property color background: Util.alpha(Color.menu.background, 1.0)
   readonly property color foreground: Color.menu.text
-  readonly property color scrim: Color.menu.scrim
   readonly property color accent: Color.accent
   readonly property color dim: Color.muted
   readonly property color selected: Color.menu.selectedText
@@ -39,6 +41,9 @@ Item {
   // box-drawing frame into disconnected dashes — the borders have to touch
   // for the receiver to read as one object.
   readonly property int cellHeight: Math.max(1, Math.round(cell.ascent + cell.descent))
+  // One character cell wide. The Python side reports click targets in cells,
+  // so this is all the arithmetic the UI needs to place them.
+  readonly property real cellWidth: cell.advanceWidth("0")
 
   FontMetrics {
     id: cell
@@ -47,6 +52,14 @@ Item {
   }
 
   readonly property var rows: service ? service.rows : []
+
+  // Where the card sits. Centred until it is dragged, then wherever it was
+  // left — a panel you keep open is a panel you want out of your way.
+  property real cardX: 0
+  property real cardY: 0
+  property bool placed: false
+  property real dragOriginX: 0
+  property real dragOriginY: 0
 
   function colorFor(kind) {
     switch (kind) {
@@ -77,6 +90,22 @@ Item {
       root.shell.hide((root.manifest && root.manifest.id) || "asfarsadewa.omampy")
   }
 
+  function beginDrag() {
+    root.dragOriginX = keys.x
+    root.dragOriginY = keys.y
+    root.placed = true
+  }
+
+  // `activeTranslation` is measured from where the drag started, so the new
+  // position is always origin plus translation — accumulating it instead
+  // would move the card at several times the speed of the pointer.
+  function dragTo(translation) {
+    var maxX = Math.max(0, window.width - keys.width)
+    var maxY = Math.max(0, window.height - keys.height)
+    root.cardX = Math.max(0, Math.min(maxX, root.dragOriginX + translation.x))
+    root.cardY = Math.max(0, Math.min(maxY, root.dragOriginY + translation.y))
+  }
+
   function act(key) {
     if (!root.service) return false
     switch (key) {
@@ -99,6 +128,18 @@ Item {
     return false
   }
 
+  // A radio is something you leave on while you work, so this is a floating
+  // panel rather than a modal overlay. The surface covers the screen so the
+  // card can be dragged anywhere on it, but:
+  //
+  //   * the input mask is only the card, so every click outside it goes
+  //     straight through to whatever window is underneath;
+  //   * keyboard focus is on demand, so your terminal keeps the keyboard
+  //     until you actually click the radio;
+  //   * there is no scrim and no click-anywhere-to-dismiss, which is what
+  //     made it vanish the moment you went back to what you were doing.
+  //
+  // It still sits on the overlay layer, so it stays in front of everything.
   PanelWindow {
     id: window
     visible: root.opened
@@ -106,22 +147,14 @@ Item {
     color: "transparent"
     WlrLayershell.namespace: "omampy-console"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     exclusionMode: ExclusionMode.Ignore
-
-    Rectangle {
-      anchors.fill: parent
-      color: root.scrim
-    }
-
-    MouseArea {
-      anchors.fill: parent
-      onClicked: root.dismiss()
-    }
+    mask: Region { item: keys }
 
     FocusScope {
       id: keys
-      anchors.centerIn: parent
+      x: root.placed ? root.cardX : Math.round((window.width - width) / 2)
+      y: root.placed ? root.cardY : Math.round((window.height - height) / 2)
       width: card.width
       height: card.height
       focus: root.opened
@@ -172,13 +205,23 @@ Item {
         color: root.background
         radius: Style.cornerRadius
 
-        // Swallow clicks so they do not reach the dismiss layer underneath.
         MouseArea {
           anchors.fill: parent
           acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
           onWheel: function (wheel) {
             root.act(wheel.angleDelta.y > 0 ? "louder" : "quieter")
           }
+          // Clicking the panel is also how it takes the keyboard, since the
+          // compositor only hands focus over on demand.
+          onPressed: keys.forceActiveFocus()
+        }
+
+        // Drag the receiver anywhere on screen by its frame.
+        DragHandler {
+          target: null
+          cursorShape: Qt.SizeAllCursor
+          onActiveChanged: if (active) root.beginDrag()
+          onTranslationChanged: if (active) root.dragTo(activeTranslation)
         }
 
         Column {
@@ -201,6 +244,7 @@ Item {
             model: root.rows
 
             delegate: Item {
+              id: rowItem
               required property var modelData
               required property int index
 
@@ -219,13 +263,47 @@ Item {
                   : root.colorFor(modelData.kind)
               }
 
-              // Track rows are the only clickable ones; the number a row
-              // carries is the playlist position, so a click is a jump.
+              // A track row is a jump: the index it carries is its playlist
+              // position.
               MouseArea {
                 anchors.fill: parent
-                enabled: modelData.kind === "track"
+                enabled: rowItem.modelData.kind === "track"
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: if (root.service) root.service.playIndex(modelData.index)
+                onClicked: if (root.service) root.service.playIndex(rowItem.modelData.index)
+              }
+
+              // The band switch is a real switch — each label is its own
+              // target, placed from the cell offsets Python measured.
+              Repeater {
+                model: rowItem.modelData.kind === "band" && root.service
+                  ? root.service.bandTargets : []
+
+                delegate: MouseArea {
+                  required property var modelData
+                  x: modelData.start * root.cellWidth
+                  width: Math.max(root.cellWidth, modelData.width * root.cellWidth)
+                  height: rowItem.height
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: if (root.service) root.service.setBand(modelData.band)
+                }
+              }
+
+              // Clicking along the transport bar seeks to that point.
+              MouseArea {
+                id: scrub
+                readonly property var target: root.service ? root.service.transportTarget : ({})
+                enabled: rowItem.modelData.kind === "transport" && target.width > 0
+                visible: enabled
+                x: (target.start || 0) * root.cellWidth
+                width: Math.max(1, (target.width || 0) * root.cellWidth)
+                height: rowItem.height
+                cursorShape: Qt.PointingHandCursor
+                onClicked: function (mouse) {
+                  if (!root.service) return
+                  var duration = root.service.trackDuration
+                  if (duration <= 0) return
+                  root.service.seekTo(Math.max(0, mouse.x / scrub.width) * duration)
+                }
               }
             }
           }
@@ -244,7 +322,11 @@ Item {
           // Bound to the frame's own width rather than the column's, which
           // would otherwise depend on this label and elide it to nothing.
           Text {
-            text: "space play · ◂▸ track · ⇧◂▸ seek · ▴▾ volume · [ ] static\n1-4 band · tab next band · s shuffle · r repeat · o power · q close"
+            // Sized to the frame: each line fits the 52-cell console width,
+            // so the caption never wraps out from under the receiver.
+            text: "click a band, the bar or a track · drag · scroll=vol"
+                + "\nspace play · ◂▸ track · ▴▾ volume · [ ] static"
+                + "\n1-4 band · tab band · s shuffle · r repeat · q close"
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             color: root.dim

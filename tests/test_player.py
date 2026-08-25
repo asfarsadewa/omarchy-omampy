@@ -306,11 +306,40 @@ class ConsoleTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.build(width=10)
 
+    def test_band_targets_land_on_the_drawn_band_labels(self):
+        drawn = self.build()
+        line = "│" + [r for r in drawn["rows"] if r["kind"] == player.ROW_BAND][0]["text"] + "│"
+        for hit in drawn["bandTargets"]:
+            piece = line[hit["start"]:hit["start"] + hit["width"]]
+            self.assertIn(hit["band"].upper(), piece)
+
+    def test_the_selected_band_target_covers_its_markers(self):
+        drawn = self.build()
+        line = "│" + [r for r in drawn["rows"] if r["kind"] == player.ROW_BAND][0]["text"] + "│"
+        hit = [h for h in drawn["bandTargets"] if h["band"] == "sw"][0]
+        self.assertEqual(line[hit["start"]:hit["start"] + hit["width"]], "▐SW▌")
+
+    def test_the_transport_target_lands_on_the_bar(self):
+        drawn = self.build()
+        line = "│" + [r for r in drawn["rows"]
+                      if r["kind"] == player.ROW_TRANSPORT][0]["text"] + "│"
+        hit = drawn["transportTarget"]
+        piece = line[hit["start"]:hit["start"] + hit["width"]]
+        self.assertIn("▌", piece)
+        self.assertEqual(piece.strip("█▌░"), "")
+
+    def test_click_targets_stay_inside_the_drawn_line(self):
+        for width in (30, 46, 72):
+            drawn = self.build(width=width)
+            for hit in drawn["bandTargets"] + [drawn["transportTarget"]]:
+                self.assertGreaterEqual(hit["start"], 1)
+                self.assertLessEqual(hit["start"] + hit["width"], width)
+
     def test_the_frame_carries_both_pieces_and_a_drawing(self):
         drawn = self.build()
         for key in ("rows", "top", "bottom", "lines", "spectrum", "mini", "bandSwitch",
                     "dial", "signal", "intensity", "nowPlaying", "transport",
-                    "playlist", "statusTag", "inner"):
+                    "playlist", "statusTag", "inner", "bandTargets", "transportTarget"):
             self.assertIn(key, drawn)
 
     def test_every_row_is_padded_to_the_inner_width(self):
