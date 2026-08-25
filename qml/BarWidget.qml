@@ -33,12 +33,20 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.space(6)
 
+    // The receiver itself, in the bar's icon font. The glyph never changes:
+    // it is how the widget is recognised among the others. State is in the
+    // colour, and in the meter and title beside it, which are hidden when
+    // the receiver is off.
     Text {
       anchors.verticalCenter: parent.verticalCenter
-      text: root.onAir ? "◉" : (root.live ? "▮▮" : "○")
-      color: root.onAir ? root.bar.barForeground : Qt.darker(root.bar.barForeground, 1.6)
+      // U+F0439 nf-md-radio, embedded directly: it is above the BMP, and a
+      // \u escape takes only four hex digits.
+      text: "󰐹"
+      color: root.onAir
+        ? root.bar.barForeground
+        : Qt.darker(root.bar.barForeground, root.live ? 1.35 : 2.0)
       font.family: root.bar.fontFamily
-      font.pixelSize: Style.font.body
+      font.pixelSize: Style.bar.iconFont
       Behavior on color {
         enabled: !root.bar || root.bar.foregroundAnimationEnabled
         ColorAnimation { duration: 160 }
@@ -47,7 +55,9 @@ BarWidget {
 
     Text {
       anchors.verticalCenter: parent.verticalCenter
-      visible: root.live && root.meter !== ""
+      // Only while the audio plays. A paused meter decays to blank
+      // characters, which held its width open as an empty gap.
+      visible: root.onAir && root.meter !== ""
       text: root.meter
       color: root.bar.barForeground
       font.family: root.bar.fontFamily
