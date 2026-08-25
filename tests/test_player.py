@@ -188,6 +188,44 @@ class StatusTests(unittest.TestCase):
                          set(player.status_from_props(PLAYING, settings())))
 
 
+class IdleMessageTests(unittest.TestCase):
+    """What the console says when the receiver is on and plays nothing."""
+
+    def test_a_loaded_playlist_gets_an_instruction(self):
+        self.assertEqual(player.idle_message({"count": 15}), player.IDLE_READY)
+
+    def test_an_empty_playlist_names_the_cause(self):
+        # "push space" would be a dead end here: there is nothing to play.
+        self.assertEqual(player.idle_message({"count": 0}), player.IDLE_NO_FILES)
+        self.assertIn("library", player.idle_message({"count": 0}))
+
+    def test_a_missing_count_is_treated_as_empty(self):
+        for status in ({}, {"count": None}, {"count": "nonsense"}):
+            self.assertEqual(player.idle_message(status), player.IDLE_NO_FILES)
+
+    def test_both_messages_fit_a_default_console(self):
+        inner = player.DEFAULT_WIDTH - 2
+        for message in (player.IDLE_READY, player.IDLE_NO_FILES):
+            self.assertLessEqual(render.display_width(message), inner - 3)
+
+    def test_the_console_shows_the_instruction_when_idle_with_files(self):
+        status = player.status_from_props({"idle-active": True, "playlist-count": 9},
+                                          settings())
+        self.assertEqual(status["state"], player.STATE_IDLE)
+        self.assertIn(player.IDLE_READY, player.console(status, [0.0] * 14)["nowPlaying"])
+
+    def test_the_console_names_the_cause_when_the_library_is_empty(self):
+        status = player.status_from_props({"idle-active": True, "playlist-count": 0},
+                                          settings())
+        self.assertIn("library", player.console(status, [0.0] * 14)["nowPlaying"])
+
+    def test_a_playing_track_is_never_replaced_by_the_message(self):
+        status = player.status_from_props(PLAYING, settings())
+        now = player.console(status, [0.0] * 14)["nowPlaying"]
+        self.assertIn("Trio", now)
+        self.assertNotIn(player.IDLE_READY, now)
+
+
 class PlaylistWindowTests(unittest.TestCase):
     def test_an_empty_playlist_shows_nothing(self):
         self.assertEqual(player.playlist_window([], 0, 5), [])

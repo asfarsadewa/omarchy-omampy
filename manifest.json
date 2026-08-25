@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "asfarsadewa.omampy",
   "name": "OMAMPY",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Asfar Sadewa",
-  "description": "A 1980s AM/shortwave receiver for your local audio files, drawn in block glyphs",
+  "description": "A local music player that makes your files sound like a 1980s MW/SW radio broadcast.",
   "kinds": [
     "service",
     "overlay",

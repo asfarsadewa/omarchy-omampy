@@ -8,7 +8,7 @@ models, the libavfilter graph we hand to mpv, the noise bed we synthesise, the
 metering maths, and the block-glyph rendering that draws the console.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 APP_NAME = "omampy"
 PLUGIN_ID = "asfarsadewa.omampy"

@@ -234,6 +234,22 @@ ROW_TRACK = "track"
 # Columns in the bar widget's miniature spectrum.
 MINI_COLUMNS = 7
 
+# What the console says when the receiver is on but plays nothing. The two
+# causes need different answers: with files in the playlist the operator has
+# something to do, and with an empty playlist that same instruction would be
+# a dead end.
+IDLE_READY = "push space to play"
+IDLE_NO_FILES = 'no files — check "library" in config.json'
+
+
+def idle_message(status: dict) -> str:
+    """The line to show for a receiver that is on air with nothing loaded."""
+    try:
+        count = int(status.get("count") or 0)
+    except (TypeError, ValueError):
+        count = 0
+    return IDLE_READY if count > 0 else IDLE_NO_FILES
+
 
 def console(status: dict, values: Sequence[float], peaks: Sequence[float] | None = None,
             *, tracks: Sequence = (), width: int = DEFAULT_WIDTH, height: int = 8,
@@ -275,7 +291,7 @@ def console(status: dict, values: Sequence[float], peaks: Sequence[float] | None
                      + "  %d%%" % round(status.get("intensity", 0) * 100))
 
     state = status.get("state", STATE_STOPPED)
-    now = status.get("display") or ("— no signal —" if state == STATE_IDLE else "—")
+    now = status.get("display") or (idle_message(status) if state == STATE_IDLE else "—")
     marker = {STATE_PLAYING: "▶", STATE_PAUSED: "▮▮"}.get(state, "■")
     now_row = "%s %s" % (marker, render.marquee(now, max(1, inner - 3), offset))
 

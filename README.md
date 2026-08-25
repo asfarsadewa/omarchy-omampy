@@ -361,7 +361,7 @@ Run the tests:
 ```
 
 The tests use the `unittest` module of the Python standard library. The tests
-do not need mpv, an audio device or a network connection. There are 477 tests.
+do not need mpv, an audio device or a network connection. There are 497 tests.
 
 The tests examine these items:
 
