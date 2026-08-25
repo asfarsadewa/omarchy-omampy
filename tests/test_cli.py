@@ -5,6 +5,7 @@ import io
 import json
 import os
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -145,6 +146,25 @@ class SessionTests(CliTestCase):
         session = cli.Session()
         self.assertEqual(session.settings["band"], config.DEFAULTS["band"])
         self.assertTrue(session.warnings)
+
+    def test_reload_picks_up_a_change_made_by_another_process(self):
+        session = cli.Session()
+        self.assertEqual(session.settings["band"], config.DEFAULTS["band"])
+        cli.Session().persist(band="lw")
+        self.assertEqual(session.reload()["band"], "lw")
+
+    def test_stamps_change_when_a_settings_file_is_written(self):
+        session = cli.Session()
+        before = session.stamps()
+        session.persist(band="lw")
+        self.assertNotEqual(session.stamps(), before)
+
+    def test_stamps_are_steady_when_nothing_is_written(self):
+        session = cli.Session()
+        self.assertEqual(session.stamps(), session.stamps())
+
+    def test_stamps_cope_with_files_that_do_not_exist_yet(self):
+        self.assertEqual(len(cli.Session().stamps()), 2)
 
     def test_tracks_come_back_from_the_written_playlist(self):
         self.add_track("Trio - Da Da Da.mp3")
@@ -344,6 +364,33 @@ class OfflineCommandTests(CliTestCase):
         self.assertEqual(frame["status"]["state"], "stopped")
         self.assertIn("lines", frame)
         self.assertIn("levels", frame)
+
+    def test_watch_notices_a_band_change_made_while_it_is_streaming(self):
+        """The console is drawn by a stream that outlives every command.
+
+        A band change is written by a separate one-shot process, so a stream
+        that read its settings once would keep drawing the old band while the
+        audio played the new one.
+        """
+        import subprocess
+        import sys as _sys
+
+        self.write_config({"library": [self.music], "band": "mw"})
+        proc = subprocess.Popen(
+            [_sys.executable, "-m", "omampy", "watch", "--hz", "30", "--duration", "1.2"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=dict(os.environ), text=True,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(cli.__file__))))
+        time.sleep(0.4)
+        cli.Session().persist(band="lw")
+        out, err = proc.communicate(timeout=20)
+
+        frames = [json.loads(line) for line in out.splitlines() if line.strip()]
+        self.assertTrue(frames, "watch produced no frames: %s" % err)
+        bands = [f["status"]["band"] for f in frames]
+        self.assertEqual(bands[0], "mw", "should start on the configured band")
+        self.assertEqual(bands[-1], "lw", "should follow the change: %s" % bands)
+        self.assertIn("▐LW▌", frames[-1]["bandSwitch"])
 
     def test_doctor_reports_a_missing_mpv_as_a_failure(self):
         with mock.patch("shutil.which", return_value=None):

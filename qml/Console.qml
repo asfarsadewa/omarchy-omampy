@@ -216,13 +216,6 @@ Item {
           onPressed: keys.forceActiveFocus()
         }
 
-        // Drag the receiver anywhere on screen by its frame.
-        DragHandler {
-          target: null
-          cursorShape: Qt.SizeAllCursor
-          onActiveChanged: if (active) root.beginDrag()
-          onTranslationChanged: if (active) root.dragTo(activeTranslation)
-        }
 
         Column {
           id: column
@@ -240,13 +233,20 @@ Item {
             verticalAlignment: Text.AlignVCenter
           }
 
+          // The model is the row *count*, not the row array. A new frame
+          // arrives twenty times a second and each one is a fresh array, so
+          // binding to it directly would destroy and rebuild every delegate —
+          // and every MouseArea in them — at 20 Hz. The cursor flickered and
+          // a press and its release landed on different objects, so nothing
+          // could be clicked. Bound to the count, the delegates persist and
+          // only their text changes.
           Repeater {
-            model: root.rows
+            model: root.rows.length
 
             delegate: Item {
               id: rowItem
-              required property var modelData
               required property int index
+              readonly property var row: root.rows[index] || ({})
 
               width: line.implicitWidth
               height: root.cellHeight
@@ -255,36 +255,38 @@ Item {
                 id: line
                 anchors.fill: parent
                 verticalAlignment: Text.AlignVCenter
-                text: "│" + (modelData.text || "") + "│"
+                text: "│" + (rowItem.row.text || "") + "│"
                 font.family: root.fontFamily
                 font.pixelSize: root.fontSize
-                color: modelData.kind === "track" && modelData.current
+                color: rowItem.row.kind === "track" && rowItem.row.current
                   ? root.selected
-                  : root.colorFor(modelData.kind)
+                  : root.colorFor(rowItem.row.kind)
               }
 
               // A track row is a jump: the index it carries is its playlist
               // position.
               MouseArea {
                 anchors.fill: parent
-                enabled: rowItem.modelData.kind === "track"
+                enabled: rowItem.row.kind === "track"
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: if (root.service) root.service.playIndex(rowItem.modelData.index)
+                onClicked: if (root.service) root.service.playIndex(rowItem.row.index)
               }
 
               // The band switch is a real switch — each label is its own
               // target, placed from the cell offsets Python measured.
               Repeater {
-                model: rowItem.modelData.kind === "band" && root.service
-                  ? root.service.bandTargets : []
+                model: rowItem.row.kind === "band" && root.service
+                  ? root.service.bandTargets.length : 0
 
                 delegate: MouseArea {
-                  required property var modelData
-                  x: modelData.start * root.cellWidth
-                  width: Math.max(root.cellWidth, modelData.width * root.cellWidth)
+                  required property int index
+                  readonly property var hit: root.service.bandTargets[index]
+                    || ({ start: 0, width: 0, band: "" })
+                  x: hit.start * root.cellWidth
+                  width: Math.max(root.cellWidth, hit.width * root.cellWidth)
                   height: rowItem.height
                   cursorShape: Qt.PointingHandCursor
-                  onClicked: if (root.service) root.service.setBand(modelData.band)
+                  onClicked: if (root.service && hit.band) root.service.setBand(hit.band)
                 }
               }
 
@@ -292,7 +294,7 @@ Item {
               MouseArea {
                 id: scrub
                 readonly property var target: root.service ? root.service.transportTarget : ({})
-                enabled: rowItem.modelData.kind === "transport" && target.width > 0
+                enabled: rowItem.row.kind === "transport" && target.width > 0
                 visible: enabled
                 x: (target.start || 0) * root.cellWidth
                 width: Math.max(1, (target.width || 0) * root.cellWidth)
@@ -333,6 +335,21 @@ Item {
             width: topRule.implicitWidth
             wrapMode: Text.WordWrap
             lineHeight: 1.3
+          }
+        }
+
+        // Drag by the nameplate, the way a window is dragged by its title
+        // bar. A drag handler across the whole card would sit over every row
+        // and fight them for the cursor shape.
+        Item {
+          width: card.width
+          height: root.pad + root.cellHeight
+
+          DragHandler {
+            target: null
+            cursorShape: Qt.SizeAllCursor
+            onActiveChanged: if (active) root.beginDrag()
+            onTranslationChanged: if (active) root.dragTo(activeTranslation)
           }
         }
       }

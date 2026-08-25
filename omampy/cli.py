@@ -40,6 +40,18 @@ class Session:
     def __init__(self, env: dict | None = None):
         self.paths = config.paths_from_env(env)
         self.warnings: list[str] = []
+        self.settings: dict = {}
+        self.reload()
+
+    def reload(self) -> dict:
+        """Re-read the settings files and rebuild the effective settings.
+
+        `watch` runs for as long as the shell does, so it cannot read these
+        once at startup: a band change writes `state.json` from a separate
+        one-shot process, and a stream that never looks again would keep
+        drawing the band it was born with while the audio played another.
+        """
+        self.warnings = []
         settings = config.load(self.paths.config_file, self.warnings)
         state = config.load(self.paths.state_file, self.warnings)
         stored = self._read_raw(self.paths.state_file)
@@ -47,6 +59,11 @@ class Session:
             if key in config.DEFAULTS:
                 settings[key] = state[key]
         self.settings = settings
+        return settings
+
+    def stamps(self) -> tuple:
+        """A cheap fingerprint of the settings files, for change detection."""
+        return (_stamp(self.paths.config_file), _stamp(self.paths.state_file))
 
     @staticmethod
     def _read_raw(path: str) -> dict:
@@ -349,8 +366,11 @@ def cmd_status(session: Session, args) -> int:
 def cmd_watch(session: Session, args) -> int:
     """Stream the console as newline-delimited JSON, one object per frame.
 
-    This is what the panel reads. It reconnects on its own if the receiver
-    goes away, so the UI never has to know whether mpv is up.
+    This is what the panel reads. It outlives every other command, so each
+    pass re-checks the things another process may have changed underneath it
+    — the settings and the playlist — before drawing anything. It reconnects
+    on its own if the receiver goes away, so the UI never has to know whether
+    mpv is up.
     """
     control = session.player()
     bands = int(session.settings["meter_bands"])
@@ -359,7 +379,8 @@ def cmd_watch(session: Session, args) -> int:
     height = args.height or session.settings["meter_height"]
 
     tracks = session.tracks()
-    playlist_stamp = _mtime(session.paths.playlist_file)
+    playlist_stamp = _stamp(session.paths.playlist_file)
+    settings_stamps = session.stamps()
     mpv = None
     status = player.status_from_props(None, session.settings)
     signal = 0.0
@@ -373,6 +394,28 @@ def cmd_watch(session: Session, args) -> int:
             if deadline and now >= deadline:
                 return EXIT_OK
 
+            # --- what has changed underneath us, before we draw ------------
+            stamp = _stamp(session.paths.playlist_file)
+            if stamp != playlist_stamp:
+                tracks = session.tracks()
+                playlist_stamp = stamp
+
+            stamps = session.stamps()
+            if stamps != settings_stamps:
+                session.reload()
+                settings_stamps = stamps
+                # The Player keeps its own copy of the settings, and the
+                # smoother is sized by them.
+                control = session.player()
+                if int(session.settings["meter_bands"]) != bands:
+                    bands = int(session.settings["meter_bands"])
+                    smoother = meter.Smoother(bands)
+                # Redraw against the new settings at once rather than waiting
+                # for the next status poll, so the band switch moves the
+                # moment the band does.
+                last_status = 0.0
+
+            # --- what the receiver is doing -------------------------------
             if mpv is None and control.is_running():
                 try:
                     mpv = control.client(timeout=1.0)
@@ -397,13 +440,12 @@ def cmd_watch(session: Session, args) -> int:
                     targets = [0.0] * bands
                     signal = 0.0
             else:
+                # Rebuilt every pass rather than once before the loop: with
+                # the receiver down this is the only thing keeping the band
+                # and the settings on screen current.
+                status = player.status_from_props(None, session.settings)
                 targets = [0.0] * bands
                 signal = 0.0
-
-            stamp = _mtime(session.paths.playlist_file)
-            if stamp != playlist_stamp:
-                tracks = session.tracks()
-                playlist_stamp = stamp
 
             values = smoother.update(targets)
             offset = int((now - started) / SCROLL_INTERVAL)
@@ -425,11 +467,17 @@ def cmd_watch(session: Session, args) -> int:
             mpv.close()
 
 
-def _mtime(path: str) -> float:
+def _stamp(path: str) -> tuple:
+    """Modification time and size, or zeroes when the file is not there.
+
+    Nanosecond mtime plus size catches a rewrite that lands inside the same
+    second, which two commands in quick succession routinely do.
+    """
     try:
-        return os.path.getmtime(path)
+        info = os.stat(path)
     except OSError:
-        return 0.0
+        return (0, 0)
+    return (info.st_mtime_ns, info.st_size)
 
 
 def cmd_chain(session: Session, args) -> int:
