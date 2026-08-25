@@ -1,8 +1,12 @@
 # OMAMPY
 
-An Omarchy shell plugin that plays your local audio files through a 1980s
-AM/shortwave receiver — band-limited, soft-clipped, drifting in and out, with
-hiss and crackle riding underneath — and draws the whole radio in block glyphs.
+OMAMPY is a plugin for the Omarchy shell. It plays audio files from a local
+directory. It applies an audio effect to these files. The effect makes the
+sound like a radio broadcast of the 1980s. The plugin draws its display with
+block characters.
+
+OMAMPY does not use the network. It does not stream audio. It does not send
+data to a remote system.
 
 ```
 ┌ OMAMPY ──────────────────────────────── ◉ ON AIR ┐
@@ -28,129 +32,176 @@ hiss and crackle riding underneath — and draws the whole radio in block glyphs
 └──────────────────────────────────────────────────┘
 ```
 
-The spectrum is not decoration. Every bar is a real RMS measurement taken from
-the audio after it has been through the radio, so what you see is what you
-hear.
+The display shows the measured level of the audio. The plugin measures the
+audio after the effect. Each bar shows the level of one frequency band.
 
-**Local files only.** OMAMPY has no network code of any kind — no streaming, no
-lookups, no telemetry. It reads a directory of your own files and plays them.
+## Terminology
+
+| Term | Definition |
+|------|------------|
+| The receiver | The mpv process. It plays and filters the audio. |
+| The panel | The large display. It floats above the other windows. |
+| The bar widget | The small display in the Omarchy bar. |
+| A band | One position of the band selector. It sets the audio effect. |
+| The noise bed | An audio file of hiss and crackle. The receiver mixes it with the music. |
+| The intensity | A value from 0 to 1. It sets the level of the noise and the level changes. |
 
 ## Requirements
 
-- Omarchy with `omarchy-shell` (Quickshell)
-- `mpv` — does all the decoding, filtering, and playback
-- Python 3.11+ — **standard library only**, no pip install, no virtualenv
+| Item | Function |
+|------|----------|
+| Omarchy 4 (Quattro), with `omarchy-shell` | Hosts the plugin. |
+| `mpv` | Decodes, filters and plays the audio. |
+| Python 3.11 or a later version | Runs the command-line program. |
 
-Both are already on a stock Omarchy machine.
+Omarchy supplies mpv and Python. The Python code uses only the standard
+library. Do not install Python packages.
 
-## Install
+## Installation
 
-```bash
-omarchy plugin add https://github.com/asfarsadewa/omarchy-omampy.git
-omarchy plugin enable asfarsadewa.omampy right
-```
+1. Add the plugin:
 
-Point it at your music and turn it on:
+   ```bash
+   omarchy plugin add https://github.com/asfarsadewa/omarchy-omampy.git
+   ```
 
-```bash
-~/.config/omarchy/plugins/asfarsadewa.omampy/bin/omampy doctor
-omarchy-shell omampy show
-```
+2. Enable the plugin:
 
-The bar widget appears on the right of the bar. Click it to open the console,
-right-click to play/pause, middle-click to skip, scroll to change volume.
+   ```bash
+   omarchy plugin enable asfarsadewa.omampy right
+   ```
 
-## Removing it
+3. Put audio files in the `~/Music` directory. To use a different directory,
+   refer to "Configuration".
 
-```bash
-omarchy plugin disable asfarsadewa.omampy
-omarchy plugin remove asfarsadewa.omampy
-```
+4. Do a check of the installation:
 
-That takes the widget off the bar and deletes the plugin checkout. OMAMPY
-writes nothing outside its own directories, so to remove every trace:
+   ```bash
+   ~/.config/omarchy/plugins/asfarsadewa.omampy/bin/omampy doctor
+   ```
 
-```bash
-rm -rf ~/.config/omampy ~/.cache/omampy ~/.local/state/omampy
-```
+   The command shows the location of mpv, the audio directory and the socket.
 
-It never edits your Omarchy config, your mpv config, or your music.
+5. Open the panel:
+
+   ```bash
+   omarchy-shell omampy panel
+   ```
+
+The bar widget shows at the right end of the bar.
+
+## Removal
+
+1. Disable the plugin:
+
+   ```bash
+   omarchy plugin disable asfarsadewa.omampy
+   ```
+
+2. Remove the plugin files:
+
+   ```bash
+   omarchy plugin remove asfarsadewa.omampy
+   ```
+
+3. To delete the data of the plugin, remove these directories:
+
+   ```bash
+   rm -rf ~/.config/omampy ~/.cache/omampy ~/.local/state/omampy
+   ```
+
+OMAMPY writes files only in these three directories. It does not change the
+Omarchy configuration, the mpv configuration or the audio files.
+
+## Operation
+
+### The panel and the receiver
+
+The panel and the receiver are independent. The receiver continues to
+play after the panel closes.
+
+NOTE: The panel floats above the other windows. A click outside the panel
+goes to the window below it. The panel does not close after such a click.
+
+NOTE: The panel takes the keyboard only after a click on the panel. Before
+that click, the keyboard stays with the previous window. All of the primary
+controls also operate with the mouse.
+
+| Task | Action |
+|------|--------|
+| Open the panel | Click the bar widget, or run `omarchy-shell omampy panel` |
+| Hide the panel | Push `q` or `esc`. The receiver continues to play. |
+| Pause the audio | Push `space`, or click the bar widget with the right button. |
+| Turn the receiver off | Push `o`, or run `omarchy-shell omampy stop` |
+| Turn the receiver on | Push `o`, or open the panel. |
+
+When the panel opens, it turns the receiver on. It does not start the audio.
+Push `space` to start the audio.
+
+The top line of the panel shows the state of the receiver: `◉ ON AIR`,
+`▮▮ PAUSED`, `○ STANDBY` or `○ OFF AIR`.
+
+### Controls with the mouse
+
+| Action | Result |
+|--------|--------|
+| Click a band label | Selects that band. |
+| Click the transport bar | Moves to that position in the audio file. |
+| Click a line of the file list | Plays that file. |
+| Drag the top edge of the panel | Moves the panel. |
+| Turn the scroll wheel on the panel | Changes the volume. |
+
+### Controls with the keyboard
+
+Click the panel to use these keys.
+
+| Key | Result |
+|-----|--------|
+| `space` | Starts or pauses the audio. |
+| `◂` `▸` | Selects the previous or the next file. |
+| `⇧◂` `⇧▸` | Moves 10 seconds back or forward. |
+| `▴` `▾` | Changes the volume. |
+| `[` `]` | Decreases or increases the intensity. |
+| `1` to `4` | Selects the MW, SW, LW or FM band. |
+| `tab` | Selects the next band. |
+| `s` | Turns the random order on or off. |
+| `r` | Changes the repeat mode. |
+| `o` | Turns the receiver on or off. |
+| `q` or `esc` | Hides the panel. |
+
+### Controls of the bar widget
+
+| Action | Result |
+|--------|--------|
+| Click with the left button | Shows or hides the panel. |
+| Click with the right button | Starts or pauses the audio. |
+| Click with the middle button | Selects the next file. |
+| Turn the scroll wheel | Changes the volume. |
 
 ## The bands
 
-| Band | What it is | Passband | Character |
-|------|-----------|----------|-----------|
-| `MW` | Medium wave | 200–4500 Hz | The wide, warm broadcast sound. Mild drift, occasional crackle. |
-| `SW` | Shortwave | 350–2800 Hz | Narrow, driven harder, deep fading, static all the way through. |
-| `LW` | Long wave | 150–2000 Hz | Muffled and distant, with 50 Hz mains hum leaking in. |
-| `FM` | Line in | — | No processing at all. Stereo, full bandwidth. Useful for A/B. |
+| Band | Name | Passband | Effect |
+|------|------|----------|--------|
+| `MW` | Medium wave | 200 Hz to 4500 Hz | Small level changes. Few crackles. |
+| `SW` | Shortwave | 350 Hz to 2800 Hz | Large level changes. More crackles. More distortion. |
+| `LW` | Long wave | 150 Hz to 2000 Hz | Adds a 50 Hz hum. |
+| `FM` | Line in | Full bandwidth | No effect. The audio does not change. The output is stereo. |
 
-`intensity` (0–1) scales the fading, the hiss, and the crackle together. At `0`
-you get the band-limiting and saturation with none of the noise; at `1` the
-station is barely holding on.
+The MW, SW and LW bands give a mono output at 22050 Hz. These bands apply a
+passband filter, a soft-clip distortion, a slow level change, a noise bed and
+an automatic gain control.
 
-## The console
+The intensity value sets the level of the noise and the level changes. At an
+intensity of 0, the receiver applies the passband filter and the distortion,
+but it adds no noise. At an intensity of 1, the noise is at its maximum.
 
-A radio is something you leave on while you work, so the console is a floating
-panel rather than a modal overlay. It sits on the compositor's overlay layer —
-in front of everything, including fullscreen windows — but it stays out of your
-way:
-
-- **clicks outside it pass straight through** to whatever is underneath, and it
-  does not close when you go back to what you were doing;
-- **it does not take your keyboard.** Your terminal keeps focus until you
-  actually click the panel;
-- **drag it anywhere** by its frame.
-
-Because it only takes the keyboard on demand, click it once before using the
-keys. Everything important is also reachable with the mouse alone.
-
-### On, off, and closing
-
-These are three different things, which is worth knowing before you go looking
-for a stop button:
-
-| To | Do |
-|----|-----|
-| open the panel | click the bar widget, or `omarchy-shell omampy panel` |
-| **hide the panel** | `q` or `esc` — the receiver keeps playing |
-| pause | `space`, or right-click the bar widget |
-| **turn the receiver off** | `o` in the panel, or `omarchy-shell omampy stop` |
-| turn it back on | `o` again, or just open the panel |
-
-Opening the panel powers the receiver on but does not start playing; press
-`space` for that. Closing the panel leaves it exactly as it was, so the radio
-keeps going while you work — which is the point. The nameplate always says
-which state it is in: `◉ ON AIR`, `▮▮ PAUSED`, `○ STANDBY`, or `○ OFF AIR`.
-
-### Mouse
-
-| Do this | Get |
-|---------|-----|
-| click a band label | switch to that band |
-| click along the transport bar | seek to that point |
-| click a track | jump to it |
-| drag the frame | move the panel |
-| scroll anywhere on it | volume |
-
-### Keys
-
-| Key | Does |
-|-----|------|
-| `space` | play / pause |
-| `◂` `▸` | previous / next track |
-| `⇧◂` `⇧▸` | seek 10s |
-| `▴` `▾` | volume |
-| `[` `]` | less / more static |
-| `1`–`4` | pick a band directly |
-| `tab` | next band |
-| `s` / `r` | shuffle / repeat mode |
-| `o` | receiver on/off |
-| `q` or `esc` | close |
+Use the FM band to hear the audio without an effect.
 
 ## Configuration
 
-`~/.config/omampy/config.json` — anything you leave out keeps its default:
+The configuration file is `~/.config/omampy/config.json`. The plugin does not
+create this file. Make the file to change a default value. The plugin uses the
+default value for each field that the file does not contain.
 
 ```json
 {
@@ -168,132 +219,182 @@ which state it is in: `◉ ON AIR`, `▮▮ PAUSED`, `○ STANDBY`, or `○ OFF 
 }
 ```
 
-`seed` pins the noise: the same seed always generates exactly the same hiss and
-the same crackles, which makes an A/B comparison meaningful.
+| Field | Type | Function |
+|-------|------|----------|
+| `library` | List of directories | The directories that contain the audio files. |
+| `recursive` | `true` or `false` | Includes the subdirectories in the search. |
+| `band` | `mw`, `sw`, `lw` or `fm` | The band at the start. |
+| `intensity` | 0 to 1 | The level of the noise and the level changes. |
+| `seed` | Integer | The seed of the noise bed. The same seed gives the same noise. |
+| `volume` | 0 to 130 | The volume at the start. |
+| `shuffle` | `true` or `false` | Puts the files in a random order. |
+| `repeat` | `off`, `one` or `all` | The repeat mode. |
+| `meter_bands` | 4 to 32 | The quantity of bars in the display. |
+| `meter_height` | 3 to 24 | The height of the display in characters. |
+| `mpv` | Command name or path | The mpv program to use. |
 
-Changes you make from the console (band, intensity, volume, …) are written to
-`~/.local/state/omampy/state.json` and take precedence, so `config.json` stays
-as the settings you actually chose to write down.
+The plugin writes the changes from the panel to
+`~/.local/state/omampy/state.json`. The values in this file have a higher
+priority than the values in `config.json`.
 
-## Command line
+## The command-line program
 
-The plugin's UI is a thin client over a CLI you can also use on its own:
+The panel sends its commands to a command-line program. The program is at
+`bin/omampy` in the plugin directory. The program also operates directly
+from a terminal.
 
-```bash
-omampy start | stop | toggle | next | prev | play [INDEX]
-omampy band sw | --next | --prev      # switch bands
-omampy intensity 0.8 | +0.1           # how rough the reception is
-omampy volume 70 | +5
-omampy seek -10 | 90 --absolute
-omampy repeat one | --cycle
-omampy shuffle on | off
-omampy scan [DIR...]                  # rebuild the playlist
-omampy status [--json | --ascii]      # --ascii draws the console in your terminal
-omampy watch --hz 20                  # stream console frames as NDJSON
-omampy chain --band sw [--af]         # print the libavfilter graph
-omampy bed --band sw                  # generate the cached noise bed
-omampy doctor                         # check mpv, the library, and the socket
-```
+| Command | Function |
+|---------|----------|
+| `omampy start` | Turns the receiver on. |
+| `omampy stop` | Turns the receiver off. |
+| `omampy toggle` | Starts or pauses the audio. |
+| `omampy next` / `omampy prev` | Selects the next or the previous file. |
+| `omampy play [INDEX]` | Plays the file at this position in the list. |
+| `omampy seek SECONDS [--absolute]` | Moves in the audio file. |
+| `omampy band NAME` | Selects a band. Use `--next` or `--prev` to move one position. |
+| `omampy intensity VALUE` | Sets the intensity. A value with a sign is relative. |
+| `omampy volume VALUE` | Sets the volume. A value with a sign is relative. |
+| `omampy repeat MODE` | Sets the repeat mode. Use `--cycle` to select the next mode. |
+| `omampy shuffle on\|off` | Turns the random order on or off. |
+| `omampy scan [DIR...]` | Makes the file list again. |
+| `omampy status [--json\|--ascii]` | Shows the state of the receiver. |
+| `omampy watch [--hz N]` | Sends the display data as one JSON object for each frame. |
+| `omampy chain [--band NAME]` | Shows the libavfilter graph. |
+| `omampy bed [--band NAME]` | Makes the noise bed file. |
+| `omampy doctor` | Does a check of mpv, the audio directory and the socket. |
 
-`omampy status --ascii` in a terminal draws the same receiver, live spectrum
-and all.
+The `--ascii` option of the `status` command draws the panel in the terminal.
+The display shows the measured levels of the audio.
 
-## Keybindings
+The exit codes are 0 for success, 2 for an incorrect command, and 3 when the
+receiver is not available.
 
-The shell exposes an `omampy` IPC target, so you can bind whatever you like in
-`~/.config/hypr/bindings.conf`:
+## Keyboard shortcuts in Hyprland
+
+The plugin supplies an IPC target with the name `omampy`. Add the necessary
+shortcuts to `~/.config/hypr/bindings.conf`:
 
 ```
 bindd = SUPER, R, Radio, exec, omarchy-shell omampy panel
-bindd = SUPER SHIFT, R, Radio play/pause, exec, omarchy-shell omampy toggle
-bindd = , XF86AudioNext, Radio next, exec, omarchy-shell omampy next
+bindd = SUPER SHIFT, R, Radio play or pause, exec, omarchy-shell omampy toggle
+bindd = , XF86AudioNext, Radio next file, exec, omarchy-shell omampy next
 ```
 
-## How it works
+The IPC target accepts these methods: `panel`, `show`, `hide`, `toggle`,
+`next`, `prev`, `start`, `stop`, `band`, `intensity`, `volume` and `state`.
+
+## Technical description
 
 ```
-files ──▶ mpv ──▶ [ libavfilter graph ] ──▶ speakers
+files ──▶ mpv ──▶ [ libavfilter graph ] ──▶ audio output
                         │
-                        ├── downmix to mono @ 22.05 kHz
-                        ├── high-shelf tilt, 6-pole passband
-                        ├── tanh soft-clip (the transmitter running hot)
-                        ├── slow tremolo (the signal wandering)
-                        ├── mix the looping noise bed
-                        ├── compress + limit
-                        └── probe ──▶ 14 band-splits ──▶ astats
-                                                          │
-                          af-metadata/omampy ◀────────────┘
+                        ├── mono downmix at 22050 Hz
+                        ├── high-shelf filter, 6-pole passband
+                        ├── tanh soft-clip distortion
+                        ├── slow tremolo
+                        ├── mix of the noise bed
+                        ├── compressor and limiter
+                        └── probe ──▶ 14 band filters ──▶ astats
+                                                            │
+                          af-metadata/omampy ◀──────────────┘
                                     │
-                            omampy watch ──▶ NDJSON ──▶ the console
+                            omampy watch ──▶ JSON ──▶ the panel
 ```
 
-Three decisions worth knowing about:
+### The audio processing
 
-**mpv does the audio, Python does the thinking.** Nothing here decodes or
-resamples anything. The Python side builds one libavfilter graph, hands it to
-mpv, and reads measurements back. That is why there are no dependencies.
+The Python code does not decode, resample or filter audio. It makes one
+libavfilter graph as a text string. It gives this string to mpv. mpv does all
+of the audio work. This is the reason that the plugin has no dependencies.
 
-**The metering rides the control socket.** The probe splits the finished audio
-into bands and merges them *alongside* an untouched copy of the signal, so one
-`astats` measures all of them at once and a final `pan` selects the real audio
-back out. Because the measurement lands on the filter's own output frames, mpv
-publishes it on `af-metadata/omampy` — the same socket that carries play and
-pause. No fifo, no second process, and nothing that can stall the audio thread
-if the console goes away.
+### The measurement method
 
-**The static is synthesised in Python, not ffmpeg.** ffmpeg has no good way to
-produce Poisson-distributed crackle, so the noise bed — band-limited hiss,
-exponential crackle bursts, and mains hum on long wave — is generated in plain
-Python, crossfaded so it loops without a seam, cached as a WAV, and mixed in by
-`amovie`. It costs nothing at playback time and it is a thing a test can pin
-down exactly.
+The graph divides the output audio into 14 frequency bands. It merges these
+bands with an unchanged copy of the audio into one frame. One `astats` filter
+measures all of the channels at the same time. A `pan` filter then selects the
+unchanged channels for the output.
 
-**Everything you see is text.** The spectrum, the tuning scale, the meters, the
-transport bar, the track list — all of it is rendered to strings by Python and
-padded to an exact character width. The QML paints rows and colours them; it
-does not compute a single bar height. That is what keeps the layout testable.
+The measurement is on the output frames of the filter. Therefore mpv makes it
+available on the `af-metadata/omampy` property. The plugin reads this property
+on the socket that also carries the play and pause commands.
 
-That goes for the click targets too: Python reports which character cells each
-band label and the transport bar occupy, and the UI multiplies by one cell
-width to place a hit area. So "clicking `SW` switches to shortwave" is
-something a test can assert on a string, rather than a thing you can only find
-out by clicking.
+An alternative method is a fifo. The plugin does not use a fifo, because mpv
+stops the audio if no program reads the fifo.
+
+### The noise bed
+
+ffmpeg cannot make crackle with a Poisson distribution. Therefore the Python
+code makes the noise bed. The noise bed contains band-limited hiss, crackle
+pulses of an exponential shape, and a mains hum for the long wave band.
+
+The Python code applies a crossfade to the end of the file. The file thus
+loops without a click. The plugin writes the file to the cache directory. The
+`amovie` filter loops the file during playback.
+
+The same seed always gives the same noise bed.
+
+### The display text
+
+The Python code draws the display. It sets each line to an exact quantity of
+characters. The QML code shows the lines and applies a color to each line. The
+QML code does not calculate the height of a bar.
+
+The Python code also reports the character positions of the band labels and
+the transport bar. The QML code multiplies these positions by the width of one
+character. The click areas are thus a function of the drawn text, and a test
+can do a check of them.
 
 ## Tests
+
+Run the tests:
 
 ```bash
 ./scripts/test
 ```
 
-472 tests, standard library `unittest`, no audio device and no mpv required.
-They cover every deterministic part: the band models, the filtergraph builder
-(including the two-level ffmpeg escaping, verified against real ffmpeg), the
-noise-bed synthesis and its determinism, the metering maths, every drawing
-primitive down to the exact character, filename parsing, playlist ordering,
-settings validation, the mpv IPC protocol against a scripted socket, and the
-command line against an isolated environment.
+The tests use the `unittest` module of the Python standard library. The tests
+do not need mpv, an audio device or a network connection. There are 477 tests.
+
+The tests examine these items:
+
+- the band data
+- the libavfilter graph, and the two-level escape sequences of ffmpeg
+- the noise bed, and its repeatability for a given seed
+- the calculation of the levels
+- each drawing function, character by character
+- the analysis of file names
+- the sequence of the file list
+- the validation of the configuration
+- the mpv IPC protocol, against a test socket
+- the command-line program, in a temporary directory
 
 ## Development
 
-Work on it in place by symlinking the checkout:
+To make changes, make a symbolic link to the local copy:
 
 ```bash
 ln -sfn "$PWD" ~/.config/omarchy/plugins/asfarsadewa.omampy
 omarchy-shell shell rescanPlugins
 ```
 
-Saving a QML file reloads it. A QML file that fails to parse will not reload
-from cache — restart with `omarchy-restart-shell` after fixing it. Load errors
-show up in `journalctl --user -f | grep omampy`.
+The shell loads a QML file again after a save. If a QML file has a syntax
+error, the shell keeps the previous version in its cache. Correct the error,
+then run `omarchy-restart-shell`.
+
+To see the errors of the plugin:
+
+```bash
+journalctl --user -f | grep omampy
+```
 
 ## Credits
 
-The effect model — passbands, drive, fade depth, hiss level, crackle rate — is
-carried over from [`make-radio-sound`](https://github.com/asfarsadewa/make-radio-sound), an
-offline renderer that did the same thing to a file with numpy and scipy. This
-plugin does it live, with no dependencies, and adds the metering, the bands,
-and the receiver.
+The values of the audio effect come from
+[`make-radio-sound`](https://github.com/asfarsadewa/make-radio-sound). That
+program applies the same effect to a file with numpy and scipy. OMAMPY applies
+the effect during playback, without these packages. OMAMPY adds the
+measurement, the bands and the display.
 
 ## License
 
-MIT
+MIT. Refer to the `LICENSE` file.
