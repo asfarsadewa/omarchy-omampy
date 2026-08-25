@@ -122,6 +122,12 @@ class StatusTests(unittest.TestCase):
         self.assertFalse(status["running"])
         self.assertEqual(status["state"], player.STATE_STOPPED)
 
+    def test_an_empty_property_set_reads_as_stopped(self):
+        # What a receiver that has just died leaves behind.
+        status = player.status_from_props({}, settings())
+        self.assertFalse(status["running"])
+        self.assertEqual(status["state"], player.STATE_STOPPED)
+
     def test_playing_is_reported_with_its_track_and_clock(self):
         status = player.status_from_props(PLAYING, settings())
         self.assertEqual(status["state"], player.STATE_PLAYING)

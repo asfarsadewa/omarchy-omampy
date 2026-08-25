@@ -123,13 +123,14 @@ def _number(value, fallback: float = 0.0) -> float:
 def status_from_props(props: dict | None, settings: dict) -> dict:
     """Fold raw mpv properties and current settings into one status object.
 
-    `props` of None means the receiver is not running at all, which is a
-    state the UI has to render just like any other.
+    `props` of None — or an empty mapping, which is what a receiver that has
+    just died leaves behind — means nothing is running, a state the UI has to
+    render just like any other.
     """
     band = modes.normalize(settings.get("band", modes.DEFAULT_MODE))
     spec = modes.mode(band)
     base = {
-        "running": props is not None,
+        "running": bool(props),
         "state": STATE_STOPPED,
         "path": "",
         "artist": "",
@@ -149,7 +150,7 @@ def status_from_props(props: dict | None, settings: dict) -> dict:
         "repeat": str(settings.get("repeat", "all")),
         "shuffle": bool(settings.get("shuffle")),
     }
-    if props is None:
+    if not props:
         return base
 
     idle = bool(props.get("idle-active"))

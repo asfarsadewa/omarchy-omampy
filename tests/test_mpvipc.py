@@ -170,8 +170,31 @@ class ClientTests(unittest.TestCase):
         with self.assertRaises(mpvipc.NotRunning):
             mpv.connect()
 
-    def test_not_running_is_an_mpv_error(self):
-        self.assertTrue(issubclass(mpvipc.NotRunning, mpvipc.MpvError))
+    def test_not_running_is_a_lost_connection(self):
+        self.assertTrue(issubclass(mpvipc.NotRunning, mpvipc.ConnectionLost))
+        self.assertTrue(issubclass(mpvipc.ConnectionLost, mpvipc.MpvError))
+
+    def test_get_does_not_swallow_a_lost_connection(self):
+        # Silently handing back the default for every property would make a
+        # dead receiver look like a live one sitting idle.
+        mpv, _ = client([])
+        with self.assertRaises(mpvipc.ConnectionLost):
+            mpv.get("pause", "fallback")
+
+    def test_get_many_stops_at_a_lost_connection(self):
+        mpv, _ = client([reply(True)])
+        with self.assertRaises(mpvipc.ConnectionLost):
+            mpv.get_many(["pause", "duration"])
+
+    def test_a_send_failure_is_a_lost_connection(self):
+        mpv, _ = client([], fail_on_send=OSError("broken pipe"))
+        with self.assertRaises(mpvipc.ConnectionLost):
+            mpv.get("pause")
+
+    def test_a_refused_property_is_still_only_a_refusal(self):
+        mpv, _ = client([reply(None, error="property not found"), reply(5, request_id=2)])
+        self.assertEqual(mpv.get("nonsense", "fallback"), "fallback")
+        self.assertEqual(mpv.get("playlist-count"), 5)
 
     def test_connecting_twice_reuses_the_socket(self):
         opened = []

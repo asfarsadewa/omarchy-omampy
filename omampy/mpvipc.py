@@ -22,7 +22,16 @@ class MpvError(RuntimeError):
     """An error reported by mpv, or a broken conversation with it."""
 
 
-class NotRunning(MpvError):
+class ConnectionLost(MpvError):
+    """The conversation broke — the socket died rather than mpv saying no.
+
+    Kept distinct from a plain MpvError because a refused property is a
+    perfectly normal answer, while a broken socket means the receiver is gone
+    and every reading after it would be a lie.
+    """
+
+
+class NotRunning(ConnectionLost):
     """No receiver is listening on the socket."""
 
 
@@ -135,7 +144,7 @@ class MpvClient:
             self._sock.sendall(encode(args, request_id))
         except OSError as exc:
             self.close()
-            raise MpvError("send failed: %s" % exc) from exc
+            raise ConnectionLost("send failed: %s" % exc) from exc
 
         while True:
             messages, self._buffer = decode(self._buffer)
@@ -150,16 +159,23 @@ class MpvClient:
                 chunk = self._sock.recv(65536)
             except OSError as exc:
                 self.close()
-                raise MpvError("receive failed: %s" % exc) from exc
+                raise ConnectionLost("receive failed: %s" % exc) from exc
             if not chunk:
                 self.close()
-                raise MpvError("receiver closed the connection")
+                raise ConnectionLost("receiver closed the connection")
             self._buffer += chunk
 
     def get(self, prop: str, default: Any = None) -> Any:
-        """Read a property, returning `default` if mpv will not answer."""
+        """Read a property, returning `default` if mpv declines to answer.
+
+        A lost connection is *not* swallowed: silently returning the default
+        for every property would make a dead receiver look like a live one
+        sitting idle.
+        """
         try:
             return self.command("get_property", prop)
+        except ConnectionLost:
+            raise
         except MpvError:
             return default
 
