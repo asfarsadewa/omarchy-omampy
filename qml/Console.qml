@@ -326,9 +326,14 @@ Item {
           Text {
             // Sized to the frame: each line fits the 52-cell console width,
             // so the caption never wraps out from under the receiver.
+            // The last line spells out the difference between hiding the
+            // panel and switching the radio off. "q close" on its own reads
+            // like a stop button, and then a receiver you thought you had
+            // closed carries on playing with nothing on screen to stop it.
             text: "click a band, the bar or a track · drag · scroll=vol"
                 + "\nspace play · ◂▸ track · ▴▾ volume · [ ] static"
-                + "\n1-4 band · tab band · s shuffle · r repeat · q close"
+                + "\n1-4 band · s shuffle · r repeat · o radio on/off"
+                + "\nq hides this panel — the radio keeps playing"
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             color: root.dim

@@ -60,6 +60,22 @@ omarchy-shell omampy show
 The bar widget appears on the right of the bar. Click it to open the console,
 right-click to play/pause, middle-click to skip, scroll to change volume.
 
+## Removing it
+
+```bash
+omarchy plugin disable asfarsadewa.omampy
+omarchy plugin remove asfarsadewa.omampy
+```
+
+That takes the widget off the bar and deletes the plugin checkout. OMAMPY
+writes nothing outside its own directories, so to remove every trace:
+
+```bash
+rm -rf ~/.config/omampy ~/.cache/omampy ~/.local/state/omampy
+```
+
+It never edits your Omarchy config, your mpv config, or your music.
+
 ## The bands
 
 | Band | What it is | Passband | Character |
@@ -88,6 +104,24 @@ way:
 
 Because it only takes the keyboard on demand, click it once before using the
 keys. Everything important is also reachable with the mouse alone.
+
+### On, off, and closing
+
+These are three different things, which is worth knowing before you go looking
+for a stop button:
+
+| To | Do |
+|----|-----|
+| open the panel | click the bar widget, or `omarchy-shell omampy panel` |
+| **hide the panel** | `q` or `esc` — the receiver keeps playing |
+| pause | `space`, or right-click the bar widget |
+| **turn the receiver off** | `o` in the panel, or `omarchy-shell omampy stop` |
+| turn it back on | `o` again, or just open the panel |
+
+Opening the panel powers the receiver on but does not start playing; press
+`space` for that. Closing the panel leaves it exactly as it was, so the radio
+keeps going while you work — which is the point. The nameplate always says
+which state it is in: `◉ ON AIR`, `▮▮ PAUSED`, `○ STANDBY`, or `○ OFF AIR`.
 
 ### Mouse
 
