@@ -135,8 +135,9 @@ controls also operate with the mouse.
 | Turn the receiver off | Push `o`, or run `omarchy-shell omampy stop` |
 | Turn the receiver on | Push `o`, or open the panel. |
 
-When the panel opens, it turns the receiver on. It does not start the audio.
-Push `space` to start the audio.
+If the receiver is off when the panel opens, the panel turns the receiver
+on and the audio starts. If the receiver is already on, the panel does not
+change the audio.
 
 The top line of the panel shows the state of the receiver: `◉ ON AIR`,
 `▮▮ PAUSED`, `○ STANDBY` or `○ OFF AIR`.
@@ -282,6 +283,9 @@ bindd = , XF86AudioNext, Radio next file, exec, omarchy-shell omampy next
 
 The IPC target accepts these methods: `panel`, `show`, `hide`, `toggle`,
 `next`, `prev`, `start`, `stop`, `band`, `intensity`, `volume` and `state`.
+
+The IPC methods do not print a result. To see error messages, use the
+command-line program.
 
 ## Technical description
 
